@@ -362,7 +362,7 @@ def get_daily_nutrition(gender, umur, umur_satuan, hamil, usia_kandungan, menyus
     Jika hamil/menyusui, kebutuhan = kebutuhan dasar + tambahan hamil/menyusui.
     """
     print('DEBUG PARAMS:', gender, umur, umur_satuan, hamil, usia_kandungan, menyusui, umur_anak)
-    csv_path = os.path.join(os.path.dirname(__file__), '..', 'nutrition.csv')
+    csv_path = os.path.join(os.path.dirname(__file__), 'nutrition.csv')
     kebutuhan_dasar = None
     tambahan = None
     # 1. Cari kebutuhan dasar (berdasarkan gender/umur)
