@@ -3,7 +3,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 # URL koneksi MySQL dengan PyMySQL
-SQLALCHEMY_DATABASE_URL = "mysql+pymysql://root:PasswordBaru123!@192.168.100.5/image_db"
+SQLALCHEMY_DATABASE_URL = "mysql+pymysql://root:PasswordBaru123!@localhost:3306/image_db"
 
 # Membuat engine untuk menghubungkan ke database
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
