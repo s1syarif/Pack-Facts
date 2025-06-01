@@ -225,7 +225,7 @@ async def remove_file_async(path: str):
 
 # Contoh stub call_ocr_api, kamu bisa pindah ke file lain juga
 async def call_ocr_api(image_path: str):
-    ocr_api_url = "http://127.0.0.1:9000/ocr/"  # OCR API berada di port 9000
+    ocr_api_url = "http://13.250.44.95:7000/ocr/"  # OCR API berada di port 9000
     try:
         # Baca gambar dan kirim ke API OCR
         with open(image_path, "rb") as img_file:
@@ -562,3 +562,5 @@ async def scan_history_all(credentials: HTTPAuthorizationCredentials = Depends(s
 # artikel kesehatan = menegnai produk produk atau gaya hidup sehat //8
 
 #9 selesai
+
+#uvicorn main:app --host 0.0.0.0 --port 8000
