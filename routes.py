@@ -225,7 +225,7 @@ async def remove_file_async(path: str):
 
 # Contoh stub call_ocr_api, kamu bisa pindah ke file lain juga
 async def call_ocr_api(image_path: str):
-    ocr_api_url = "https://2962-2001-448a-11b0-3e35-6871-a8f7-51a9-45bf.ngrok-free.app/ocr/"  # OCR API berada di port 9000
+    ocr_api_url = "https://2f9c-2001-448a-11b0-3e35-cd1e-71c2-d6d0-10e8.ngrok-free.app/ocr/"  # OCR API berada di port 9000
     try:
         # Baca gambar dan kirim ke API OCR
         with open(image_path, "rb") as img_file:
