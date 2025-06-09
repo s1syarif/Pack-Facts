@@ -110,7 +110,7 @@ async def upload_image(
         db.refresh(image)
 
         # Panggil fungsi OCR yang juga bisa kamu pisah di modul lain
-        ocr_result = await call_ocr_api(file_location)
+        ocr_result = await call_ocr_api(file_location) 
 
         # Ambil hanya kandungan gizi utama dari hasil OCR (exclude kolom non-gizi)
         gizi_keys = [
@@ -225,7 +225,7 @@ async def remove_file_async(path: str):
 
 # Contoh stub call_ocr_api, kamu bisa pindah ke file lain juga
 async def call_ocr_api(image_path: str):
-    ocr_api_url = "http://127.0.0.1:9000/ocr/"  # OCR API berada di port 9000
+    ocr_api_url = "https://d17e-2001-448a-11b0-3e35-cd1e-71c2-d6d0-10e8.ngrok-free.app/ocr/"  # OCR API berada di port 9000
     try:
         # Baca gambar dan kirim ke API OCR
         with open(image_path, "rb") as img_file:
@@ -514,7 +514,7 @@ async def scan_history(credentials: HTTPAuthorizationCredentials = Depends(secur
 
 @router.get("/scan-history-all")
 async def scan_history_all(credentials: HTTPAuthorizationCredentials = Depends(security), user_data: dict = Depends(verify_token), db: Session = Depends(get_db)):
-    user_id = user_data.get("user_id")
+    user_id = user_data.get("user_id") or user_data.get("userId")
     if not user_id:
         raise HTTPException(status_code=401, detail="User tidak ditemukan di token")
     images = db.query(Image).filter(
@@ -562,3 +562,7 @@ async def scan_history_all(credentials: HTTPAuthorizationCredentials = Depends(s
 # artikel kesehatan = menegnai produk produk atau gaya hidup sehat //8
 
 #9 selesai
+
+#uvicorn main:app --host 0.0.0.0 --port 8000
+
+# + eror handling 
