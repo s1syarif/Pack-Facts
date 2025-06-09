@@ -560,11 +560,28 @@ async def recommendation_api_proxy(request: Request):
     ML_API_URL = f"{BASE_API_URL}/recommend/"
     try:
         data = await request.json()
+        print(f"[DEBUG] Akan mengirim ke ML API: {ML_API_URL} dengan data: {data}", flush=True)
         async with aiohttp.ClientSession() as session:
-            async with session.post(ML_API_URL, json=data) as resp:
-                resp_json = await resp.json()
-                return JSONResponse(status_code=resp.status, content=resp_json)
+            try:
+                async with session.post(ML_API_URL, json=data) as resp:
+                    print(f"[DEBUG] Selesai request ke ML API, status: {resp.status}", flush=True)
+                    resp_text = await resp.text()
+                    try:
+                        resp_json = await resp.json()
+                        print(f"[DEBUG] ML API response JSON: {resp_json}", flush=True)
+                        return JSONResponse(status_code=resp.status, content=resp_json)
+                    except Exception as e:
+                        print(f"ML API response not JSON. Status: {resp.status}, Text: {resp_text}", flush=True)
+                        return JSONResponse(status_code=500, content={
+                            "error": "ML API did not return valid JSON.",
+                            "status": resp.status,
+                            "response_text": resp_text
+                        })
+            except Exception as e:
+                print(f"[ERROR] Exception during request to ML API: {e}", flush=True)
+                return JSONResponse(status_code=500, content={"error": f"Failed to connect to ML API: {e}"})
     except Exception as e:
+        print(f"[ERROR] Exception in /recommendation handler: {e}", flush=True)
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 #post/register -> in nama, email, pass, bb, tinggi, umur, -> out berhasil atau gagal //1
