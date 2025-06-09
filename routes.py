@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Body, Header
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Body, Header, Request
 from fastapi.responses import JSONResponse, HTMLResponse
 from sqlalchemy.orm import Session
 from models import Image, User
@@ -28,6 +28,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import time
 import csv
 import uuid
+from pydantic import BaseModel
+from typing import Optional, Dict
 
 router = APIRouter()
 
@@ -223,9 +225,11 @@ async def remove_file_async(path: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete file: {str(e)}")
 
+BASE_API_URL = "https://d17e-2001-448a-11b0-3e35-cd1e-71c2-d6d0-10e8.ngrok-free.app"
+
 # Contoh stub call_ocr_api, kamu bisa pindah ke file lain juga
 async def call_ocr_api(image_path: str):
-    ocr_api_url = "https://d17e-2001-448a-11b0-3e35-cd1e-71c2-d6d0-10e8.ngrok-free.app/ocr/"  # OCR API berada di port 9000
+    OCR_API_URL = f"{BASE_API_URL}/ocr/"
     try:
         # Baca gambar dan kirim ke API OCR
         with open(image_path, "rb") as img_file:
@@ -236,14 +240,13 @@ async def call_ocr_api(image_path: str):
             form_data = aiohttp.FormData()
             form_data.add_field('file', image_data, filename='image.png', content_type='image/png')
 
-            async with session.post(ocr_api_url, data=form_data) as response:
+            async with session.post(OCR_API_URL, data=form_data) as response:
                 print(f"Status OCR API response: {response.status}")  # Log status respons dari API OCR
                 if response.status == 200:
                     result = await response.json()
                     return result["result"]
                 else:
                     raise HTTPException(status_code=500, detail="OCR API error")
-
     except Exception as e:
         # Log error di console backend untuk debugging
         print(f"Error during OCR processing: {str(e)}")
@@ -543,6 +546,27 @@ async def scan_history_all(credentials: HTTPAuthorizationCredentials = Depends(s
         })
     return {"history": history}
 
+class RecommendationRequest(BaseModel):
+    umur: int
+    jenis_kelamin: str
+    hamil: Optional[bool] = False
+    usia_kandungan: Optional[int] = None
+    menyusui: Optional[bool] = False
+    umur_anak: Optional[int] = None
+    konsumsi: Dict[str, float]
+
+@router.post("/recommendation")
+async def recommendation_api_proxy(request: Request):
+    ML_API_URL = f"{BASE_API_URL}/recommend/"
+    try:
+        data = await request.json()
+        async with aiohttp.ClientSession() as session:
+            async with session.post(ML_API_URL, json=data) as resp:
+                resp_json = await resp.json()
+                return JSONResponse(status_code=resp.status, content=resp_json)
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 #post/register -> in nama, email, pass, bb, tinggi, umur, -> out berhasil atau gagal //1
 
 #post/login -> in email, pass -> out userId, name, token //1
@@ -565,4 +589,4 @@ async def scan_history_all(credentials: HTTPAuthorizationCredentials = Depends(s
 
 #uvicorn main:app --host 0.0.0.0 --port 8000
 
-# + eror handling 
+# + eror handling
