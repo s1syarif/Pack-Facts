@@ -598,9 +598,9 @@ async def recommendation_api_proxy(request: Request):
 @router.post("/predict")
 async def predict_api_proxy(request: Request):
     """
-    Proxy endpoint for multi-label prediction. Forwards request to ML API /predict-mlb.
+    Proxy endpoint for multi-label prediction. Forwards request to ML API /predict-dieses.
     """
-    ML_API_URL = f"{BASE_API_URL}/predict-mlb"
+    ML_API_URL = f"{BASE_API_URL}/predict-dieses"
     try:
         data = await request.json()
         print(f"[DEBUG] Akan mengirim ke ML API: {ML_API_URL} dengan data: {data}", flush=True)
