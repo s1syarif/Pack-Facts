@@ -627,6 +627,38 @@ async def predict_api_proxy(request: Request):
         print(f"[ERROR] Exception in /predict handler: {e}", flush=True)
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+@router.post("/health-scoring")
+async def health_score_proxy(request: Request):
+    """
+    Proxy endpoint: menerima payload konsumsi & target, lalu forward ke ML API health_score_api.py
+    """
+    try:
+        data = await request.json()
+        # Validasi minimal field wajib
+        required_fields = [
+            'energi','protein','lemak_total','karbohidrat','serat','gula','garam',
+            'target_energi','target_protein','target_lemak_total','target_karbohidrat','target_serat','target_gula','target_garam'
+        ]
+        for f in required_fields:
+            if f not in data:
+                return JSONResponse(status_code=400, content={"error": f"Field '{f}' wajib diisi"})
+        # Gunakan BASE_API_URL untuk ML API health-score
+        ML_API_URL = f"{BASE_API_URL}/health-score"
+        async with aiohttp.ClientSession() as session:
+            async with session.post(ML_API_URL, json=data) as resp:
+                resp_text = await resp.text()
+                try:
+                    resp_json = await resp.json()
+                    return JSONResponse(status_code=resp.status, content=resp_json)
+                except Exception:
+                    return JSONResponse(status_code=500, content={
+                        "error": "ML API tidak mengembalikan JSON valid.",
+                        "status": resp.status,
+                        "response_text": resp_text
+                    })
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 #post/register -> in nama, email, pass, bb, tinggi, umur, -> out berhasil atau gagal //1
 
 #post/login -> in email, pass -> out userId, name, token //1
