@@ -225,7 +225,7 @@ async def remove_file_async(path: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete file: {str(e)}")
 
-BASE_API_URL = "https://d17e-2001-448a-11b0-3e35-cd1e-71c2-d6d0-10e8.ngrok-free.app"
+BASE_API_URL = "https://e71f-180-242-24-202.ngrok-free.app"
 
 # Contoh stub call_ocr_api, kamu bisa pindah ke file lain juga
 async def call_ocr_api(image_path: str):
