@@ -1,6 +1,6 @@
 # routes/image.py
 # Pindahan dari image_routes.py
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Body
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Body, Form
 from sqlalchemy.orm import Session
 from models import Image
 from database import SessionLocal
@@ -28,7 +28,7 @@ def get_db():
 async def upload_image(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    user_id: int = Body(...)
+    user_id: int = Form(...)
 ):
     if not allowed_file(file.filename):
         raise HTTPException(status_code=400, detail="File type not allowed")
