@@ -659,6 +659,30 @@ async def health_score_proxy(request: Request):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+@router.get("/me")
+def get_profile(credentials: HTTPAuthorizationCredentials = Depends(security), user_data: dict = Depends(verify_token), db: Session = Depends(get_db)):
+    user_id = user_data.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User tidak ditemukan di token")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User tidak ditemukan di database")
+    return {
+        "id": user.id,
+        "nama": user.nama,
+        "email": user.email,
+        "bb": user.bb,
+        "tinggi": user.tinggi,
+        "gender": user.gender,
+        "umur": user.umur,
+        "umur_satuan": user.umur_satuan,
+        "hamil": bool(user.hamil) if user.hamil is not None else False,
+        "usia_kandungan": user.usia_kandungan,
+        "menyusui": bool(user.menyusui) if user.menyusui is not None else False,
+        "umur_anak": user.umur_anak,
+        "timezone": user.timezone
+    }
+
 #post/register -> in nama, email, pass, bb, tinggi, umur, -> out berhasil atau gagal //1
 
 #post/login -> in email, pass -> out userId, name, token //1
