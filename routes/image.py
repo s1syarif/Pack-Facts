@@ -9,6 +9,7 @@ from datetime import datetime
 from utils import allowed_file
 import logging
 from fastapi.responses import HTMLResponse
+import httpx
 
 router = APIRouter()
 
@@ -23,6 +24,16 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def validate_nutrition_json(data):
+    expected_keys = ["energi", "protein", "lemak total", "karbohidrat", "serat", "gula", "garam"]
+    result = {}
+    for key in expected_keys:
+        try:
+            result[key] = float(data.get(key, 0.0))
+        except Exception:
+            result[key] = 0.0
+    return result
 
 @router.post("/upload/")
 async def upload_image(
@@ -48,7 +59,28 @@ async def upload_image(
     db.add(image)
     db.commit()
     db.refresh(image)
-    return {"message": "File uploaded successfully", "id": image.id, "filename": image.filename}
+
+    # Kirim gambar ke API ML
+    ml_api_url = "http://localhost:8001/predict"  # Ganti dengan URL ML API Anda
+    nutrition_json = {}
+    try:
+        with open(file_location, "rb") as img_file:
+            files = {"file": (unique_filename, img_file, file.content_type)}
+            async with httpx.AsyncClient() as client:
+                response = await client.post(ml_api_url, files=files)
+                response.raise_for_status()
+                ml_result = response.json()
+                nutrition_json = validate_nutrition_json(ml_result)
+    except Exception as e:
+        logger.error(f"ML API error: {str(e)}")
+        nutrition_json = validate_nutrition_json({})
+
+    return {
+        "message": "File uploaded successfully",
+        "id": image.id,
+        "filename": image.filename,
+        "nutrition": nutrition_json
+    }
 
 @router.delete("/delete/{filename}")
 async def delete_image(filename: str, db: Session = Depends(get_db)):
