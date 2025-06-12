@@ -23,17 +23,20 @@ def allowed_file(filename: str) -> bool:
 
 
 def verify_token(credentials: HTTPAuthorizationCredentials, secret_key: str, algorithm: str):
-    """Verify JWT token and return payload."""
+    """Verifikasi JWT token dan kembalikan payload. Tambahkan logging error detail."""
     try:
         payload = jwt.decode(credentials.credentials, secret_key, algorithms=[algorithm], options={"verify_exp": False})
         # Manual exp check
         if 'exp' in payload:
             if int(payload['exp']) < int(time.time()):
+                logger.warning(f"Token kadaluarsa: exp={payload['exp']}, now={int(time.time())}")
                 raise HTTPException(status_code=401, detail="Token kadaluarsa")
         return payload
-    except jwt.ExpiredSignatureError:
+    except jwt.ExpiredSignatureError as e:
+        logger.error(f"ExpiredSignatureError: {str(e)}")
         raise HTTPException(status_code=401, detail="Token kadaluarsa")
-    except Exception:
+    except Exception as e:
+        logger.error(f"Token tidak valid: {str(e)}")
         raise HTTPException(status_code=401, detail="Token tidak valid atau kadaluarsa")
 
 
@@ -132,6 +135,50 @@ def get_daily_nutrition(gender, umur, umur_satuan, hamil, usia_kandungan, menyus
         return tambahan
     else:
         return None
+
+
+def extract_main_nutrition(ocr_result):
+    gizi_keys = ["energi", "protein", "lemak total", "karbohidrat", "serat", "gula", "garam"]
+    kandungan_gizi = {}
+    for key in gizi_keys:
+        val = ocr_result.get(key)
+        if val is None and key == "lemak total":
+            val = ocr_result.get("total lemak")
+        if val is not None:
+            kandungan_gizi[key] = val
+    return kandungan_gizi
+
+
+def map_kebutuhan_gizi(kebutuhan, csv_key_map):
+    kebutuhan_gizi = {}
+    if kebutuhan:
+        for key, csv_key in csv_key_map.items():
+            val = kebutuhan.get(csv_key)
+            if val not in (None, ''):
+                try:
+                    kebutuhan_gizi[key] = float(str(val).strip().replace(',', '.'))
+                except Exception:
+                    kebutuhan_gizi[key] = 0
+    return kebutuhan_gizi
+
+
+def compare_nutrition(kandungan_gizi, kebutuhan_gizi):
+    all_keys = set(kandungan_gizi.keys()) | set(kebutuhan_gizi.keys())
+    comparison = []
+    for key in all_keys:
+        label = key.replace('_', ' ').replace('total', 'Total').title()
+        ocr_val = float(kandungan_gizi.get(key, 0))
+        kebutuhan_val = float(kebutuhan_gizi.get(key, 0))
+        status = 'Aman'
+        if kebutuhan_val and ocr_val > kebutuhan_val:
+            status = 'Melebihi'
+        comparison.append({
+            'label': label,
+            'hasil_ocr': ocr_val,
+            'kebutuhan_harian': kebutuhan_val,
+            'status': status
+        })
+    return comparison
 
 
 # --- Utility untuk proxy ML API ---

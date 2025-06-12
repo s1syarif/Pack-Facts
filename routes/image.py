@@ -6,10 +6,13 @@ from models import Image
 from database import SessionLocal
 import os, uuid, shutil
 from datetime import datetime
-from utils import allowed_file
+from utils import allowed_file, extract_main_nutrition, map_kebutuhan_gizi, compare_nutrition
 import logging
-from fastapi.responses import HTMLResponse
-import httpx
+from fastapi.responses import HTMLResponse, JSONResponse
+import aiohttp
+from fastapi.security import HTTPAuthorizationCredentials
+from routes.auth import security, verify_token_dependency  # Ganti ke dependency yang benar
+from routes.nutrition import get_daily_nutrition  # Import from routes.nutrition
 
 router = APIRouter()
 
@@ -25,63 +28,92 @@ def get_db():
     finally:
         db.close()
 
-def validate_nutrition_json(data):
-    expected_keys = ["energi", "protein", "lemak total", "karbohidrat", "serat", "gula", "garam"]
-    result = {}
-    for key in expected_keys:
-        try:
-            result[key] = float(data.get(key, 0.0))
-        except Exception:
-            result[key] = 0.0
-    return result
-
 @router.post("/upload/")
 async def upload_image(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    user_id: int = Form(...)
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    user_data: dict = Depends(verify_token_dependency)
 ):
+    if file is None:
+        raise HTTPException(status_code=422, detail="File tidak ditemukan di form-data. Pastikan field bernama 'file'.")
     if not allowed_file(file.filename):
         raise HTTPException(status_code=400, detail="File type not allowed")
-    ext = os.path.splitext(file.filename)[1]
-    unique_id = str(uuid.uuid4())
-    unique_filename = f"{unique_id}{ext}"
-    file_location = os.path.join(IMAGE_DIR, unique_filename)
-    os.makedirs(IMAGE_DIR, exist_ok=True)
-    with open(file_location, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    image = Image(
-        filename=unique_filename,
-        filepath=file_location,
-        uploaded_at=datetime.utcnow(),
-        user_id=user_id
+
+    kebutuhan = get_daily_nutrition(
+        user_data.get("gender"),
+        user_data.get("umur"),
+        user_data.get("umur_satuan"),
+        user_data.get("hamil"),
+        user_data.get("usia_kandungan"),
+        user_data.get("menyusui"),
+        user_data.get("umur_anak")
     )
-    db.add(image)
-    db.commit()
-    db.refresh(image)
-
-    # Kirim gambar ke API ML
-    ml_api_url = " https://e71f-180-242-24-202.ngrok-free.app/ocr/"  # Ganti dengan URL ML API Anda
-    nutrition_json = {}
     try:
-        with open(file_location, "rb") as img_file:
-            files = {"file": (unique_filename, img_file, file.content_type)}
-            async with httpx.AsyncClient() as client:
-                response = await client.post(ml_api_url, files=files)
-                response.raise_for_status()
-                ml_result = response.json()
-                nutrition_json = validate_nutrition_json(ml_result)
+        ext = os.path.splitext(file.filename)[1]
+        unique_id = str(uuid.uuid4())
+        unique_filename = f"{unique_id}{ext}"
+        file_location = os.path.join(IMAGE_DIR, unique_filename)
+        os.makedirs(IMAGE_DIR, exist_ok=True)
+        with open(file_location, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        image = Image(
+            filename=unique_filename,
+            filepath=file_location,
+            uploaded_at=datetime.utcnow(),
+            user_id=user_data.get("user_id")
+        )
+        db.add(image)
+        db.commit()
+        db.refresh(image)
+        # Panggil OCR API
+        ocr_result = await call_ocr_api(file_location)
+        csv_key_map = {
+            "energi": "Energi (kkal)",
+            "protein": "Protein (g)",
+            "lemak total": "Total Lemak (g)",
+            "karbohidrat": "Karbohidrat (g)",
+            "serat": "Serat (g)",
+            "gula": "Gula (g)",
+            "garam": "Garam (mg)"
+        }
+        kandungan_gizi = extract_main_nutrition(ocr_result)
+        kebutuhan_gizi = map_kebutuhan_gizi(kebutuhan, csv_key_map)
+        comparison = compare_nutrition(kandungan_gizi, kebutuhan_gizi)
+        import json
+        image.nutrition_json = json.dumps(kandungan_gizi, ensure_ascii=False)
+        db.commit()
+        return JSONResponse(content={
+            "message": "File uploaded successfully",
+            "id": image.id,
+            "filename": image.filename,
+            "kandungan_gizi": kandungan_gizi,
+            "kebutuhan_harian": kebutuhan_gizi,
+            "perbandingan": comparison
+        })
     except Exception as e:
-        logger.error(f"ML API error: {str(e)}")
-        nutrition_json = validate_nutrition_json({})
+        print(f"Error uploading file: {str(e)}")
+        return JSONResponse(status_code=500, content={"error": f"File upload failed: {str(e)}"})
 
-    return {
-        "message": "File uploaded successfully",
-        "id": int(image.id),
-        "filename": str(image.filename),
-        "nutrition": {k: float(v) for k, v in nutrition_json.items()}
-    }
-
+async def call_ocr_api(image_path: str):
+    OCR_API_URL = "https://e71f-180-242-24-202.ngrok-free.app/ocr/"
+    try:
+        with open(image_path, "rb") as img_file:
+            image_data = img_file.read()
+        async with aiohttp.ClientSession() as session:
+            form_data = aiohttp.FormData()
+            form_data.add_field('file', image_data, filename='image.png', content_type='image/png')
+            async with session.post(OCR_API_URL, data=form_data) as response:
+                print(f"Status OCR API response: {response.status}")
+                if response.status == 200:
+                    result = await response.json()
+                    return result["result"]
+                else:
+                    raise HTTPException(status_code=500, detail="OCR API error")
+    except Exception as e:
+        print(f"Error during OCR processing: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to process image: {str(e)}")
+    
 @router.delete("/delete/{filename}")
 async def delete_image(filename: str, db: Session = Depends(get_db)):
     image = db.query(Image).filter(Image.filename == filename).first()
