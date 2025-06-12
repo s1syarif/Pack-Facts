@@ -1,1 +1,37 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+
+# VSCode settings
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Alembic migration cache
+alembic/versions/*.pyc
+
+# Secrets & keys
+*.pem
+*.key
+*.env
+secrets.json
+
+# Database files
+*.sqlite3
+*.db
+
+# Log files
+*.log
+
+# Ignore nutrition data if generated
+nutrition.csv
+
+# Ignore your specific key
 pack-facts-key.pem
