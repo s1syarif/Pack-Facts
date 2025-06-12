@@ -61,7 +61,7 @@ async def upload_image(
     db.refresh(image)
 
     # Kirim gambar ke API ML
-    ml_api_url = "http://localhost:8001/predict"  # Ganti dengan URL ML API Anda
+    ml_api_url = " https://e71f-180-242-24-202.ngrok-free.app/ocr/"  # Ganti dengan URL ML API Anda
     nutrition_json = {}
     try:
         with open(file_location, "rb") as img_file:
@@ -77,9 +77,9 @@ async def upload_image(
 
     return {
         "message": "File uploaded successfully",
-        "id": image.id,
-        "filename": image.filename,
-        "nutrition": nutrition_json
+        "id": int(image.id),
+        "filename": str(image.filename),
+        "nutrition": {k: float(v) for k, v in nutrition_json.items()}
     }
 
 @router.delete("/delete/{filename}")
