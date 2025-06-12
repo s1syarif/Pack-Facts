@@ -683,6 +683,71 @@ def get_profile(credentials: HTTPAuthorizationCredentials = Depends(security), u
         "timezone": user.timezone
     }
 
+@router.put("/me")
+def update_profile(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    user_data: dict = Depends(verify_token),
+    db: Session = Depends(get_db),
+    nama: str = Body(None),
+    bb: int = Body(None),
+    tinggi: int = Body(None),
+    gender: str = Body(None),
+    umur: int = Body(None),
+    umur_satuan: str = Body(None),
+    hamil: bool = Body(None),
+    usia_kandungan: int = Body(None),
+    menyusui: bool = Body(None),
+    umur_anak: int = Body(None),
+    timezone: str = Body(None)
+):
+    user_id = user_data.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User tidak ditemukan di token")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User tidak ditemukan di database")
+    # Update field jika ada input baru
+    if nama is not None:
+        user.nama = nama
+    if bb is not None:
+        user.bb = bb
+    if tinggi is not None:
+        user.tinggi = tinggi
+    if gender is not None:
+        user.gender = gender
+    if umur is not None:
+        user.umur = umur
+    if umur_satuan is not None:
+        user.umur_satuan = umur_satuan
+    if hamil is not None:
+        user.hamil = 1 if hamil else 0
+    if usia_kandungan is not None:
+        user.usia_kandungan = usia_kandungan
+    if menyusui is not None:
+        user.menyusui = 1 if menyusui else 0
+    if umur_anak is not None:
+        user.umur_anak = umur_anak
+    if timezone is not None:
+        user.timezone = timezone
+    db.commit()
+    db.refresh(user)
+    return {
+        "message": "Profil berhasil diupdate",
+        "id": user.id,
+        "nama": user.nama,
+        "email": user.email,
+        "bb": user.bb,
+        "tinggi": user.tinggi,
+        "gender": user.gender,
+        "umur": user.umur,
+        "umur_satuan": user.umur_satuan,
+        "hamil": bool(user.hamil) if user.hamil is not None else False,
+        "usia_kandungan": user.usia_kandungan,
+        "menyusui": bool(user.menyusui) if user.menyusui is not None else False,
+        "umur_anak": user.umur_anak,
+        "timezone": user.timezone
+    }
+
 #post/register -> in nama, email, pass, bb, tinggi, umur, -> out berhasil atau gagal //1
 
 #post/login -> in email, pass -> out userId, name, token //1
