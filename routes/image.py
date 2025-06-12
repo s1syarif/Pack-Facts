@@ -8,10 +8,12 @@ import os, uuid, shutil
 from datetime import datetime
 from utils import allowed_file
 import logging
+from fastapi.responses import HTMLResponse
 
 router = APIRouter()
 
 IMAGE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'images'))
+IMAGES_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../images'))
 os.makedirs(IMAGE_DIR, exist_ok=True)
 logger = logging.getLogger(__name__)
 
@@ -73,3 +75,15 @@ async def read_root(db: Session = Depends(get_db)):
         filename = os.path.basename(img.filepath)
         html += f'<div><img src="/images/{filename}" width="300"><p>{filename}</p></div>'
     return html
+
+@router.get("/gallery", response_class=None)
+def gallery():
+    files = [
+        f for f in os.listdir(IMAGES_DIR)
+        if f.lower().endswith(('.jpg', '.jpeg', '.png'))
+    ]
+    html = "<h2>Gallery</h2>"
+    for filename in files:
+        url = f"/images/{filename}"
+        html += f'<div style="display:inline-block;margin:8px;"><img src="{url}" width="200"><br>{filename}</div>'
+    return HTMLResponse(content=html)
