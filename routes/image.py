@@ -6,6 +6,7 @@ from models import Image
 from database import SessionLocal
 import os, uuid, shutil
 from datetime import datetime
+import pytz
 from utils import allowed_file, extract_main_nutrition, map_kebutuhan_gizi, compare_nutrition
 import logging
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -57,10 +58,17 @@ async def upload_image(
         os.makedirs(IMAGE_DIR, exist_ok=True)
         with open(file_location, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
+        # Ambil timezone user, default ke Asia/Jakarta jika tidak ada
+        user_timezone = user_data.get("timezone", "Asia/Jakarta")
+        try:
+            tz = pytz.timezone(user_timezone)
+        except Exception:
+            tz = pytz.timezone("Asia/Jakarta")
+        now = datetime.now(tz)
         image = Image(
             filename=unique_filename,
             filepath=file_location,
-            uploaded_at=datetime.utcnow(),
+            uploaded_at=now,
             user_id=user_data.get("user_id")
         )
         db.add(image)

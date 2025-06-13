@@ -119,21 +119,21 @@ def get_profile(credentials: HTTPAuthorizationCredentials = Depends(security), u
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User tidak ditemukan di database")
-    return {
-        "id": user.id,
-        "nama": user.nama,
-        "email": user.email,
-        "bb": user.bb,
-        "tinggi": user.tinggi,
-        "gender": user.gender,
-        "umur": user.umur,
-        "umur_satuan": user.umur_satuan,
-        "hamil": bool(user.hamil) if user.hamil is not None else False,
-        "usia_kandungan": user.usia_kandungan,
-        "menyusui": bool(user.menyusui) if user.menyusui is not None else False,
-        "umur_anak": user.umur_anak,
-        "timezone": user.timezone
-    }
+    return UserProfileResponse(
+        id=user.id,
+        nama=user.nama,
+        email=user.email,
+        bb=user.bb,
+        tinggi=user.tinggi,
+        gender=user.gender,
+        umur=user.umur,
+        umur_satuan=user.umur_satuan,
+        hamil=bool(user.hamil) if user.hamil is not None else False,
+        usia_kandungan=user.usia_kandungan,
+        menyusui=bool(user.menyusui) if user.menyusui is not None else False,
+        umur_anak=user.umur_anak,
+        timezone=user.timezone
+    )
 
 @router.put("/me", response_model=UserProfileResponse)
 def update_profile(
