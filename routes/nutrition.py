@@ -78,7 +78,7 @@ async def get_daily_nutrition_endpoint(credentials: HTTPAuthorizationCredentials
 
 @router.post("/recommendation")
 async def recommendation_proxy(payload: RecommendationPayload):
-    BASE_API_URL = os.environ.get("BASE_API_URL", "https://e71f-180-242-24-202.ngrok-free.app")
+    BASE_API_URL = os.environ.get("BASE_API_URL", "https://3d45-180-242-24-202.ngrok-free.app")
     ML_RECOMMEND_URL = f"{BASE_API_URL}/recommend"
     result = await proxy_ml_api(ML_RECOMMEND_URL, payload.dict())
     return JSONResponse(status_code=200, content=result)
@@ -130,7 +130,7 @@ def get_scan_history_today(credentials: HTTPAuthorizationCredentials = Depends(s
 
 @router.post("/predict")
 async def predict_dieses_proxy(request: Request):
-    BASE_API_URL = os.environ.get("BASE_API_URL", "https://e71f-180-242-24-202.ngrok-free.app")
+    BASE_API_URL = os.environ.get("BASE_API_URL", "https://3d45-180-242-24-202.ngrok-free.app")
     ML_PREDICT_URL = f"{BASE_API_URL}/predict-dieses"
     payload = await request.json()
     result = await proxy_ml_api(ML_PREDICT_URL, payload)
@@ -138,7 +138,7 @@ async def predict_dieses_proxy(request: Request):
 
 @router.post("/health-scoring")
 async def health_score_proxy(request: Request):
-    BASE_API_URL = os.environ.get("BASE_API_URL", "https://e71f-180-242-24-202.ngrok-free.app")
+    BASE_API_URL = os.environ.get("BASE_API_URL", "https://3d45-180-242-24-202.ngrok-free.app")
     ML_HEALTH_SCORE_URL = f"{BASE_API_URL}/health-score"
     payload = await request.json()
     result = await proxy_ml_api(ML_HEALTH_SCORE_URL, payload)

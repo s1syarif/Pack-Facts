@@ -96,7 +96,7 @@ async def upload_image(
         return JSONResponse(status_code=500, content={"error": f"File upload failed: {str(e)}"})
 
 async def call_ocr_api(image_path: str):
-    OCR_API_URL = "https://e71f-180-242-24-202.ngrok-free.app/ocr/"
+    OCR_API_URL = "https://3d45-180-242-24-202.ngrok-free.app/ocr/"
     try:
         with open(image_path, "rb") as img_file:
             image_data = img_file.read()
