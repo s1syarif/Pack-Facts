@@ -9,13 +9,19 @@ from datetime import datetime, date
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os
 from database import SessionLocal
-from models import Image, User
+from models import Image, User, Recommendation
 from utils import get_daily_nutrition, proxy_ml_api
 import logging
+import json
+from routes.global_config import BASE_API_URL
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 security = HTTPBearer()
+
+ML_RECOMMEND_URL = f"{BASE_API_URL}/recommend"
+ML_PREDICT_URL = f"{BASE_API_URL}/predict-dieses"
+ML_HEALTH_SCORE_URL = f"{BASE_API_URL}/health-score"
 
 def get_db():
     db = SessionLocal()
@@ -43,21 +49,15 @@ class ScanHistoryAllResponse(BaseModel):
     history: List[ScanHistoryItem]
 
 @router.get("/daily-nutrition")
-async def get_daily_nutrition_endpoint(credentials: HTTPAuthorizationCredentials = Depends(security), user_data: dict = Depends(verify_token_dependency), db: Session = Depends(get_db)):
-    user_id = user_data.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="User tidak ditemukan di token")
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User tidak ditemukan di database")
+async def get_daily_nutrition_endpoint(credentials: HTTPAuthorizationCredentials = Depends(security), user_data: dict = Depends(verify_token_dependency)):
     kebutuhan = get_daily_nutrition(
-        user.gender,
-        user.umur,
-        user.umur_satuan,
-        bool(user.hamil) if user.hamil is not None else False,
-        user.usia_kandungan,
-        bool(user.menyusui) if user.menyusui is not None else False,
-        user.umur_anak
+        user_data.get("gender"),
+        user_data.get("umur"),
+        user_data.get("umur_satuan"),
+        user_data.get("hamil"),
+        user_data.get("usia_kandungan"),
+        user_data.get("menyusui"),
+        user_data.get("umur_anak")
     )
     csv_key_map = {
         "energi": "Energi (kkal)",
@@ -84,10 +84,49 @@ async def get_daily_nutrition_endpoint(credentials: HTTPAuthorizationCredentials
 
 @router.post("/recommendation")
 async def recommendation_proxy(payload: RecommendationPayload):
-    BASE_API_URL = os.environ.get("BASE_API_URL", "https://3d45-180-242-24-202.ngrok-free.app")
-    ML_RECOMMEND_URL = f"{BASE_API_URL}/recommend"
     result = await proxy_ml_api(ML_RECOMMEND_URL, payload.dict())
     return JSONResponse(status_code=200, content=result)
+
+@router.post("/recommendation/save")
+async def save_recommendation(
+    payload: RecommendationPayload,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    user_data: dict = Depends(verify_token_dependency),
+    db: Session = Depends(get_db)
+):
+    user_id = user_data.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User tidak ditemukan di token")
+    result = await proxy_ml_api(ML_RECOMMEND_URL, payload.dict())
+    rekomendasi_json = json.dumps(result, ensure_ascii=False)
+    rec = Recommendation(user_id=user_id, rekomendasi_json=rekomendasi_json)
+    db.add(rec)
+    db.commit()
+    db.refresh(rec)
+    return {"message": "Rekomendasi berhasil disimpan", "recommendation": result}
+
+@router.get("/recommendation/history")
+def get_recommendation_history(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    user_data: dict = Depends(verify_token_dependency),
+    db: Session = Depends(get_db)
+):
+    user_id = user_data.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User tidak ditemukan di token")
+    recs = db.query(Recommendation).filter(Recommendation.user_id == user_id).order_by(Recommendation.created_at.desc()).all()
+    history = []
+    for rec in recs:
+        try:
+            rekomendasi = json.loads(rec.rekomendasi_json) if rec.rekomendasi_json else {}
+        except Exception:
+            rekomendasi = {}
+        history.append({
+            "id": rec.id,
+            "created_at": rec.created_at,
+            "recommendation": rekomendasi
+        })
+    return {"history": history}
 
 @router.get("/scan-history-all", response_model=ScanHistoryAllResponse)
 def get_scan_history_all(credentials: HTTPAuthorizationCredentials = Depends(security), user_data: dict = Depends(verify_token_dependency), db: Session = Depends(get_db)):
@@ -136,16 +175,12 @@ def get_scan_history_today(credentials: HTTPAuthorizationCredentials = Depends(s
 
 @router.post("/predict")
 async def predict_dieses_proxy(request: Request):
-    BASE_API_URL = os.environ.get("BASE_API_URL", "https://3d45-180-242-24-202.ngrok-free.app")
-    ML_PREDICT_URL = f"{BASE_API_URL}/predict-dieses"
     payload = await request.json()
     result = await proxy_ml_api(ML_PREDICT_URL, payload)
     return JSONResponse(status_code=200, content=result)
 
 @router.post("/health-scoring")
 async def health_score_proxy(request: Request):
-    BASE_API_URL = os.environ.get("BASE_API_URL", "https://3d45-180-242-24-202.ngrok-free.app")
-    ML_HEALTH_SCORE_URL = f"{BASE_API_URL}/health-score"
     payload = await request.json()
     result = await proxy_ml_api(ML_HEALTH_SCORE_URL, payload)
     return JSONResponse(status_code=200, content=result)

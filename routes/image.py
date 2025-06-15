@@ -14,6 +14,7 @@ import aiohttp
 from fastapi.security import HTTPAuthorizationCredentials
 from routes.auth import security, verify_token_dependency  # Ganti ke dependency yang benar
 from routes.nutrition import get_daily_nutrition  # Import from routes.nutrition
+from routes.global_config import BASE_API_URL
 
 router = APIRouter()
 
@@ -21,6 +22,8 @@ IMAGE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'image
 IMAGES_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../images'))
 os.makedirs(IMAGE_DIR, exist_ok=True)
 logger = logging.getLogger(__name__)
+
+OCR_API_URL = f"{BASE_API_URL}/ocr/"
 
 def get_db():
     db = SessionLocal()
@@ -104,7 +107,6 @@ async def upload_image(
         return JSONResponse(status_code=500, content={"error": f"File upload failed: {str(e)}"})
 
 async def call_ocr_api(image_path: str):
-    OCR_API_URL = "https://3d45-180-242-24-202.ngrok-free.app/ocr/"
     try:
         with open(image_path, "rb") as img_file:
             image_data = img_file.read()

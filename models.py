@@ -12,6 +12,14 @@ class Image(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     nutrition_json = Column(Text, nullable=True)  # simpan hasil OCR (JSON string)
 
+class Recommendation(Base):
+    __tablename__ = "recommendations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    rekomendasi_json = Column(Text, nullable=False)  # hasil rekomendasi gizi (JSON string)
+
 class User(Base):
     __tablename__ = "users"
 
