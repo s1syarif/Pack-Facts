@@ -15,6 +15,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from routes.auth import security, verify_token_dependency  # Ganti ke dependency yang benar
 from routes.nutrition import get_daily_nutrition  # Import from routes.nutrition
 from routes.global_config import BASE_API_URL
+import json
 
 router = APIRouter()
 
@@ -91,7 +92,6 @@ async def upload_image(
         kandungan_gizi = extract_main_nutrition(ocr_result)
         kebutuhan_gizi = map_kebutuhan_gizi(kebutuhan, csv_key_map)
         comparison = compare_nutrition(kandungan_gizi, kebutuhan_gizi)
-        import json
         image.nutrition_json = json.dumps(kandungan_gizi, ensure_ascii=False)
         db.commit()
         return JSONResponse(content={
@@ -161,3 +161,17 @@ def gallery():
         url = f"/images/{filename}"
         html += f'<div style="display:inline-block;margin:8px;"><img src="{url}" width="200"><br>{filename}</div>'
     return HTMLResponse(content=html)
+
+@router.put("/update-nutrition/{image_id}")
+async def update_nutrition(
+    image_id: int,
+    kandungan_gizi: dict = Body(...),
+    db: Session = Depends(get_db)
+):
+    image = db.query(Image).filter(Image.id == image_id).first()
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found")
+    image.nutrition_json = json.dumps(kandungan_gizi, ensure_ascii=False)
+    db.commit()
+    db.refresh(image)
+    return {"message": "Kandungan gizi berhasil diupdate", "image_id": image.id, "kandungan_gizi": kandungan_gizi}
