@@ -45,12 +45,14 @@ def get_daily_nutrition(gender, umur, umur_satuan, hamil, usia_kandungan, menyus
     Mengambil kebutuhan harian dari CSV berdasarkan data user.
     Jika hamil/menyusui, kebutuhan = kebutuhan dasar + tambahan hamil/menyusui.
     """
+    logger.info(f"get_daily_nutrition params: gender={gender}, umur={umur}, umur_satuan={umur_satuan}, hamil={hamil}, usia_kandungan={usia_kandungan}, menyusui={menyusui}, umur_anak={umur_anak}")
     if csv_path is None:
         csv_path = os.path.join(os.path.dirname(__file__), 'nutrition.csv')
     kebutuhan_dasar = None
     tambahan = None
     # 1. Cari kebutuhan dasar (berdasarkan gender/umur)
     if gender and umur is not None and umur_satuan:
+        logger.info(f"Cari kebutuhan dasar: gender={gender}, umur={umur}, umur_satuan={umur_satuan}")
         if umur_satuan == 'tahun':
             with open(csv_path, encoding='utf-8') as f:
                 reader = csv.DictReader(f)
@@ -59,6 +61,7 @@ def get_daily_nutrition(gender, umur, umur_satuan, hamil, usia_kandungan, menyus
                     gender_norm = (gender or '').strip().lower()
                     if kategori_csv == gender_norm:
                         umur_csv = row['Umur'].strip()
+                        logger.info(f"Cek row: {row}")
                         if '-' in umur_csv:
                             parts = umur_csv.split('-')
                             try:
@@ -66,13 +69,16 @@ def get_daily_nutrition(gender, umur, umur_satuan, hamil, usia_kandungan, menyus
                                 max_u = int(parts[1].replace('+','').strip())
                                 if min_u <= int(umur) <= max_u and row['Satuan'].lower() == 'tahun':
                                     kebutuhan_dasar = row
+                                    logger.info(f"Dapat kebutuhan_dasar: {row}")
                                     break
-                            except:
+                            except Exception as e:
+                                logger.warning(f"Error parsing umur_csv: {umur_csv}, error: {e}")
                                 continue
                         elif umur_csv.replace('+','').isdigit():
                             min_u = int(umur_csv.replace('+','').strip())
                             if int(umur) >= min_u and row['Satuan'].lower() == 'tahun':
                                 kebutuhan_dasar = row
+                                logger.info(f"Dapat kebutuhan_dasar: {row}")
                                 break
         elif umur_satuan == 'bulan':
             with open(csv_path, encoding='utf-8') as f:
@@ -85,9 +91,11 @@ def get_daily_nutrition(gender, umur, umur_satuan, hamil, usia_kandungan, menyus
                             max_u = int(umur_range[1].strip())
                             if min_u <= int(umur) <= max_u and row['Satuan'] == 'bulan':
                                 kebutuhan_dasar = row
+                                logger.info(f"Dapat kebutuhan_dasar bayi/anak: {row}")
                                 break
     # 2. Tambahan jika hamil
     if hamil and usia_kandungan:
+        logger.info(f"Cari tambahan hamil: usia_kandungan={usia_kandungan}")
         if usia_kandungan <= 3:
             trimester = '1'
         elif usia_kandungan <= 6:
@@ -99,9 +107,11 @@ def get_daily_nutrition(gender, umur, umur_satuan, hamil, usia_kandungan, menyus
             for row in reader:
                 if row['Kategori'].lower().startswith('hamil') and row['Umur'] == trimester and row['Satuan'].lower() == 'trimester':
                     tambahan = row
+                    logger.info(f"Dapat tambahan hamil: {row}")
                     break
     # 3. Tambahan jika menyusui
     elif menyusui and umur_anak is not None:
+        logger.info(f"Cari tambahan menyusui: umur_anak={umur_anak}")
         if umur_anak <= 6:
             menyusui_periode = '1 - 6'
         else:
@@ -111,6 +121,7 @@ def get_daily_nutrition(gender, umur, umur_satuan, hamil, usia_kandungan, menyus
             for row in reader:
                 if row['Kategori'].lower().startswith('menyusui') and row['Umur'] == menyusui_periode and row['Satuan'].lower() == 'bulan':
                     tambahan = row
+                    logger.info(f"Dapat tambahan menyusui: {row}")
                     break
     # 4. Gabungkan kebutuhan dasar + tambahan (jika ada)
     if kebutuhan_dasar:
@@ -130,10 +141,13 @@ def get_daily_nutrition(gender, umur, umur_satuan, hamil, usia_kandungan, menyus
                 except:
                     add = 0
                 kebutuhan_final[key] = dasar + add
+        logger.info(f"Kebutuhan final: {kebutuhan_final}")
         return kebutuhan_final
     elif tambahan:
+        logger.info(f"Kebutuhan hanya tambahan: {tambahan}")
         return tambahan
     else:
+        logger.warning("Tidak ditemukan kebutuhan harian yang cocok dengan data user!")
         return None
 
 
