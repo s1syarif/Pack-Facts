@@ -157,5 +157,26 @@ def gallery():
     html = "<h2>Gallery</h2>"
     for filename in files:
         url = f"/images/{filename}"
-        html += f'<div style="display:inline-block;margin:8px;"><img src="{url}" width="200"><br>{filename}</div>'
+        # Tambahkan tombol hapus di bawah setiap gambar
+        html += f'''<div style="display:inline-block;margin:8px;text-align:center;">
+            <img src="{url}" width="200"><br>{filename}<br>
+            <form method="post" action="/images/delete/{filename}" onsubmit="return confirm('Yakin hapus gambar ini?');">
+                <button type="submit" style="margin-top:4px;background:#d9534f;color:white;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;">Hapus</button>
+            </form>
+        </div>'''
     return HTMLResponse(content=html)
+
+@router.post("/images/delete/{filename}")
+def delete_image_gallery(filename: str, db: Session = Depends(get_db)):
+    image = db.query(Image).filter(Image.filename == filename).first()
+    if not image:
+        return HTMLResponse(content=f"<p style='color:red;'>Gambar tidak ditemukan.</p>")
+    if os.path.isfile(image.filepath):
+        try:
+            os.remove(image.filepath)
+        except Exception as e:
+            logger.error(f"Failed to delete file: {str(e)}")
+            return HTMLResponse(content=f"<p style='color:red;'>Gagal hapus file: {str(e)}</p>")
+    db.delete(image)
+    db.commit()
+    return HTMLResponse(content=f"<p style='color:green;'>Gambar {filename} berhasil dihapus.</p><a href='/gallery'>Kembali ke gallery</a>")
