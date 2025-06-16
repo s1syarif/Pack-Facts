@@ -49,15 +49,21 @@ class ScanHistoryAllResponse(BaseModel):
     history: List[ScanHistoryItem]
 
 @router.get("/daily-nutrition")
-async def get_daily_nutrition_endpoint(credentials: HTTPAuthorizationCredentials = Depends(security), user_data: dict = Depends(verify_token_dependency)):
+async def get_daily_nutrition_endpoint(credentials: HTTPAuthorizationCredentials = Depends(security), user_data: dict = Depends(verify_token_dependency), db: Session = Depends(get_db)):
+    user_id = user_data.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User tidak ditemukan di token")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User tidak ditemukan di database")
     kebutuhan = get_daily_nutrition(
-        user_data.get("gender"),
-        user_data.get("umur"),
-        user_data.get("umur_satuan"),
-        user_data.get("hamil"),
-        user_data.get("usia_kandungan"),
-        user_data.get("menyusui"),
-        user_data.get("umur_anak")
+        user.gender,
+        user.umur,
+        user.umur_satuan,
+        user.hamil,
+        user.usia_kandungan,
+        user.menyusui,
+        user.umur_anak
     )
     csv_key_map = {
         "energi": "Energi (kkal)",
