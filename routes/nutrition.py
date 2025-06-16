@@ -103,18 +103,17 @@ async def save_recommendation(
     user_id = user_data.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="User tidak ditemukan di token")
-    result = await proxy_ml_api(ML_RECOMMEND_URL, payload.dict())
+    # Hapus semua rekomendasi lama user ini sebelum simpan baru
+    db.query(Recommendation).filter(Recommendation.user_id == user_id).delete()
+    db.commit()
+    # Tetap simpan meskipun result dari ML API belum ada/masih kosong
+    try:
+        result = await proxy_ml_api(ML_RECOMMEND_URL, payload.dict())
+    except Exception:
+        result = None
     rekomendasi_json = json.dumps(result, ensure_ascii=False)
-    # Cari rekomendasi yang sudah ada untuk user ini
-    rec = db.query(Recommendation).filter(Recommendation.user_id == user_id).first()
-    if rec:
-        # Update rekomendasi lama
-        rec.rekomendasi_json = rekomendasi_json
-        rec.created_at = datetime.utcnow()
-    else:
-        # Insert baru jika belum ada
-        rec = Recommendation(user_id=user_id, rekomendasi_json=rekomendasi_json)
-        db.add(rec)
+    rec = Recommendation(user_id=user_id, rekomendasi_json=rekomendasi_json)
+    db.add(rec)
     db.commit()
     db.refresh(rec)
     return {"message": "Rekomendasi berhasil disimpan", "recommendation": result}
