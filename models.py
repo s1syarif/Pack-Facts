@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Boolean
 from database import Base
 from datetime import datetime
 
@@ -38,3 +38,4 @@ class User(Base):
     umur_anak = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     timezone = Column(String(40), nullable=True, default="Asia/Jakarta")
+    is_verified = Column(Boolean, nullable=False, default=False)

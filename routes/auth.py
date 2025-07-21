@@ -1,6 +1,9 @@
+import smtplib
+from email.mime.text import MIMEText
+from email.utils import formataddr
 # routes/auth.py
 # Pindahan dari auth_routes.py
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 from passlib.context import CryptContext
@@ -10,6 +13,7 @@ import os
 from models import User
 from database import SessionLocal
 from utils import verify_token
+from sqlalchemy.exc import SQLAlchemyError
 
 router = APIRouter()
 
@@ -58,6 +62,32 @@ class UserProfileResponse(BaseModel):
     umur_anak: int | None = None
     timezone: str
 
+def send_verification_email(email, token):
+    sender = "hidayatullahsyarif40@gmail.com"  # Ganti dengan email Gmail Anda
+    receiver = email
+    subject = "Verifikasi Email PackFact"
+    link = f"http://54.151.129.129:8000/verify-email?token={token}"
+    body = f"""
+    <p>Terima kasih telah mendaftar di PackFact!</p>
+    <p>Silakan klik link berikut untuk verifikasi email Anda:<br>
+    <a href='{link}'>{link}</a></p>
+    <p>Jika Anda tidak merasa mendaftar, abaikan email ini.</p>
+    """
+    msg = MIMEText(body, 'html')
+    msg['Subject'] = subject
+    msg['From'] = formataddr(("PackFact", sender))
+    msg['To'] = receiver
+    try:
+        smtp = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+        # Penting: GUNAKAN APP PASSWORD GMAIL, bukan password Gmail biasa!
+        # Buat App Password di https://myaccount.google.com/apppasswords
+        # Contoh: smtp.login(sender, 'abcd efgh ijkl mnop')
+        smtp.login(sender, 'rvzs rxye xvjv mqcy')
+        smtp.sendmail(sender, [receiver], msg.as_string())
+        smtp.quit()
+    except Exception as e:
+        print(f"Gagal mengirim email verifikasi: {e}")
+
 @router.post("/register")
 def register(req: RegisterRequest, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == req.email).first():
@@ -76,12 +106,25 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
         usia_kandungan=req.usia_kandungan,
         menyusui=1 if req.menyusui else 0,
         umur_anak=req.umur_anak,
-        timezone=req.timezone
+        timezone=req.timezone,
+        is_verified=False
     )
     db.add(user)
     db.commit()
     db.refresh(user)
-    return {"message": "Registrasi berhasil"}
+    # Generate token verifikasi
+    import time
+    token_data = {
+        "user_id": user.id,
+        "exp": int(time.time()) + 3600  # 1 jam
+    }
+    token = jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
+    if isinstance(token, bytes):
+        token = token.decode('utf-8')
+    send_verification_email(user.email, token)
+    return {"message": "Registrasi berhasil, silakan cek email untuk verifikasi."}
+
+@router.post("/login")
 
 @router.post("/login")
 def login(
@@ -92,6 +135,8 @@ def login(
     user = db.query(User).filter(User.email == email).first()
     if not user or not pwd_context.verify(password, user.password):
         raise HTTPException(status_code=401, detail="Email atau password salah")
+    if not user.is_verified:
+        raise HTTPException(status_code=403, detail="Email belum diverifikasi. Silakan cek email Anda.")
     import time
     token_data = {
         "user_id": user.id,
@@ -198,3 +243,28 @@ def update_profile(
         "umur_anak": user.umur_anak,
         "timezone": user.timezone
     }
+
+# Endpoint verifikasi email
+@router.get("/verify-email")
+def verify_email(token: str = Query(...), db: Session = Depends(get_db)):
+    try:
+        SECRET_KEY = os.environ.get("SECRET_KEY", "secretkey123")
+        ALGORITHM = "HS256"
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("user_id")
+        if not user_id:
+            raise HTTPException(status_code=400, detail="Token tidak valid")
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User tidak ditemukan")
+        if user.is_verified:
+            return {"message": "Email sudah diverifikasi."}
+        user.is_verified = True
+        db.commit()
+        return {"message": "Email berhasil diverifikasi."}
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=400, detail="Token sudah expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=400, detail="Token tidak valid")
+    except SQLAlchemyError:
+        raise HTTPException(status_code=500, detail="Gagal update status verifikasi")
