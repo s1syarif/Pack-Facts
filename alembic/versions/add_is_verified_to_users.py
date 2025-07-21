@@ -16,7 +16,6 @@ depends_on = None
 
 def upgrade():
     op.add_column('users', sa.Column('is_verified', sa.Boolean(), nullable=False, server_default=sa.text('0')))
-    op.add_column('users', sa.Column('is_verified', sa.Boolean(), nullable=False, server_default='0'))
 
 def downgrade():
     op.drop_column('users', 'is_verified')
