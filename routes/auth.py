@@ -239,52 +239,58 @@ def update_profile(
     }
 
 # Endpoint verifikasi email
-@router.get("/verify-email")
+@router.get("/verify-email", response_class=HTMLResponse)
 def verify_email(token: str = Query(...), db: Session = Depends(get_db)):
+    print(f"📩 Memulai verifikasi token: {token}")
+
     try:
         SECRET_KEY = os.environ.get("SECRET_KEY", "secretkey123")
         ALGORITHM = "HS256"
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = payload.get("user_id")
+
+        print(f"✅ Payload token: {payload}")
+
         if not user_id:
+            print("❌ Token tidak punya user_id")
             raise HTTPException(status_code=400, detail="Token tidak valid")
+
         user = db.query(User).filter(User.id == user_id).first()
+        print(f"👤 User ditemukan: {user}")
+
         if not user:
+            print("❌ User tidak ditemukan di DB")
             raise HTTPException(status_code=404, detail="User tidak ditemukan")
-        if user.is_verified:
-            return HTMLResponse(
-                content="""
-                <html>
-                  <head>
-                    <meta http-equiv="refresh" content="2;url=http://localhost:7000" />
-                  </head>
-                  <body>
-                    <h3>Email sudah diverifikasi.</h3>
-                    <p>Anda akan diarahkan ke halaman utama...</p>
-                  </body>
-                </html>
-                """,
-                status_code=200
-            )
-        user.is_verified = True
-        db.commit()
-        return HTMLResponse(
-            content="""
+
+        def generate_html(message):
+            return f"""
             <html>
               <head>
                 <meta http-equiv="refresh" content="2;url=http://localhost:7000" />
               </head>
               <body>
-                <h3>Email berhasil diverifikasi!</h3>
+                <h3>{message}</h3>
                 <p>Anda akan diarahkan ke halaman utama...</p>
               </body>
             </html>
-            """,
-            status_code=200
-        )
+            """
+
+        if user.is_verified:
+            print("ℹ️ User sudah terverifikasi sebelumnya")
+            return HTMLResponse(content=generate_html("Email sudah diverifikasi."), status_code=200)
+
+        user.is_verified = True
+        db.commit()
+        print("✅ User berhasil diverifikasi dan disimpan ke DB")
+
+        return HTMLResponse(content=generate_html("Email berhasil diverifikasi!"), status_code=200)
+
     except jwt.ExpiredSignatureError:
+        print("❌ Token sudah expired")
         raise HTTPException(status_code=400, detail="Token sudah expired")
     except jwt.InvalidTokenError:
+        print("❌ Token tidak valid")
         raise HTTPException(status_code=400, detail="Token tidak valid")
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
+        print(f"❌ SQLAlchemy error: {e}")
         raise HTTPException(status_code=500, detail="Gagal update status verifikasi")
