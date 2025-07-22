@@ -268,6 +268,6 @@ def verify_email(token: str = Query(...), db: Session = Depends(get_db)):
     except SQLAlchemyError:
         raise HTTPException(status_code=500, detail="Gagal update status verifikasi")
     
-@router.get("/test-redirect")
+@router.get("/test-redirectt")
 def test_redirect():
     return RedirectResponse("http://localhost:7000", status_code=302)
