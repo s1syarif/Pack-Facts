@@ -4,7 +4,7 @@ from email.utils import formataddr
 # routes/auth.py
 # Pindahan dari auth_routes.py
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 from passlib.context import CryptContext
