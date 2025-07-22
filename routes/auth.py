@@ -257,10 +257,11 @@ def verify_email(token: str = Query(...), db: Session = Depends(get_db)):
                 <html>
                   <body>
                     <h3>Email sudah diverifikasi.</h3>
+                    <p>Anda akan diarahkan ke halaman utama...</p>
                     <script>
                       setTimeout(function() {
                         window.location.href = 'http://localhost:7000';
-                      }, 1500);
+                      }, 2000);
                     </script>
                   </body>
                 </html>
@@ -273,11 +274,12 @@ def verify_email(token: str = Query(...), db: Session = Depends(get_db)):
             content="""
             <html>
               <body>
-                <h3>Email berhasil diverifikasi. Anda akan diarahkan ke halaman utama...</h3>
+                <h3>Email berhasil diverifikasi!</h3>
+                <p>Anda akan diarahkan ke halaman utama...</p>
                 <script>
                   setTimeout(function() {
                     window.location.href = 'http://localhost:7000';
-                  }, 1500);
+                  }, 2000);
                 </script>
               </body>
             </html>
