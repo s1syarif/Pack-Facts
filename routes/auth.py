@@ -267,3 +267,7 @@ def verify_email(token: str = Query(...), db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Token tidak valid")
     except SQLAlchemyError:
         raise HTTPException(status_code=500, detail="Gagal update status verifikasi")
+    
+@router.get("/test-redirect")
+def test_redirect():
+    return RedirectResponse("http://localhost:7000", status_code=302)
