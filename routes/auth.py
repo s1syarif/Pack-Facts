@@ -4,6 +4,7 @@ from email.utils import formataddr
 # routes/auth.py
 # Pindahan dari auth_routes.py
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 from passlib.context import CryptContext
@@ -63,26 +64,19 @@ class UserProfileResponse(BaseModel):
     timezone: str
 
 def send_verification_email(email, token):
-    sender = "hidayatullahsyarif40@gmail.com"  # Ganti dengan email Gmail Anda
+    sender = "nutrackku@gmail.com"  # Ganti dengan email Gmail Anda
     receiver = email
     subject = "Verifikasi Email PackFact"
     link = f"http://54.151.129.129:8000/verify-email?token={token}"
-    body = f"""
-    <p>Terima kasih telah mendaftar di PackFact!</p>
-    <p>Silakan klik link berikut untuk verifikasi email Anda:<br>
-    <a href='{link}'>{link}</a></p>
-    <p>Jika Anda tidak merasa mendaftar, abaikan email ini.</p>
-    """
-    msg = MIMEText(body, 'html')
+    body = f"Terima kasih telah mendaftar di PackFact!\n\nSilakan klik link berikut untuk verifikasi email Anda:\n{link}\n\nJika Anda tidak merasa mendaftar, abaikan email ini."
+    msg = MIMEText(body)
     msg['Subject'] = subject
     msg['From'] = formataddr(("PackFact", sender))
     msg['To'] = receiver
     try:
         smtp = smtplib.SMTP_SSL('smtp.gmail.com', 465)
-        # Penting: GUNAKAN APP PASSWORD GMAIL, bukan password Gmail biasa!
-        # Buat App Password di https://myaccount.google.com/apppasswords
-        # Contoh: smtp.login(sender, 'abcd efgh ijkl mnop')
-        smtp.login(sender, 'rvzs rxye xvjv mqcy')
+        # Ganti 'abcd efgh ijkl mnop' dengan App Password Gmail Anda (bukan password Gmail biasa)
+        smtp.login(sender, 'abcd efgh ijkl mnop')
         smtp.sendmail(sender, [receiver], msg.as_string())
         smtp.quit()
     except Exception as e:
@@ -258,10 +252,38 @@ def verify_email(token: str = Query(...), db: Session = Depends(get_db)):
         if not user:
             raise HTTPException(status_code=404, detail="User tidak ditemukan")
         if user.is_verified:
-            return {"message": "Email sudah diverifikasi."}
+            return HTMLResponse(
+                content="""
+                <html>
+                  <body>
+                    <h3>Email sudah diverifikasi.</h3>
+                    <script>
+                      setTimeout(function() {
+                        window.location.href = 'http://localhost:7000';
+                      }, 1500);
+                    </script>
+                  </body>
+                </html>
+                """,
+                status_code=200
+            )
         user.is_verified = True
         db.commit()
-        return {"message": "Email berhasil diverifikasi."}
+        return HTMLResponse(
+            content="""
+            <html>
+              <body>
+                <h3>Email berhasil diverifikasi. Anda akan diarahkan ke halaman utama...</h3>
+                <script>
+                  setTimeout(function() {
+                    window.location.href = 'http://localhost:7000';
+                  }, 1500);
+                </script>
+              </body>
+            </html>
+            """,
+            status_code=200
+        )
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=400, detail="Token sudah expired")
     except jwt.InvalidTokenError:
