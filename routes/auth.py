@@ -66,7 +66,7 @@ class UserProfileResponse(BaseModel):
 def send_verification_email(email, token):
     sender = "nutrackku@gmail.com"  # Ganti dengan email Gmail Anda
     receiver = email
-    subject = "Verifikasi Email PackFact"
+    subject = "Verifikasi Email NuTrack"
     link = f"http://54.151.129.129:8000/verify-email?token={token}"
     body = f"Terima kasih telah mendaftar di PackFact!\n\nSilakan klik link berikut untuk verifikasi email Anda:\n{link}\n\nJika Anda tidak merasa mendaftar, abaikan email ini."
     msg = MIMEText(body)
